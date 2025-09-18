@@ -352,7 +352,11 @@
              * Checks if both files are uploaded and all columns are selected.
              */
             function checkIfReady() {
-                compareBtn.disabled = !(fileDataA && fileDataB && idColumnA.value && itemColumnA.value && quantityColumnA.value && idColumnB.value && itemColumnB.value && quantityColumnB.value);
+                const hasA = fileDataA && fileDataA.length > 0;
+                const hasB = fileDataB && fileDataB.length > 0;
+                const selOkA = idColumnA.value !== '' && itemColumnA.value !== '' && quantityColumnA.value !== '';
+                const selOkB = idColumnB.value !== '' && itemColumnB.value !== '' && quantityColumnB.value !== '';
+                compareBtn.disabled = !(hasA && hasB && selOkA && selOkB);
             }
             
             /**
@@ -683,7 +687,7 @@
                         };
                     `], { type: 'application/javascript' });
                     const workerUrl = URL.createObjectURL(workerBlob);
-                    const worker = new Worker(workerUrl);
+                    const worker = new Worker(workerUrl, { name: 'compare-worker' });
                     worker.onmessage = (msg) => {
                         const { type, percent, results } = msg.data || {};
                         if (type === 'progress') onProgress?.(percent);
@@ -696,7 +700,7 @@
                     worker.onerror = (err) => {
                         URL.revokeObjectURL(workerUrl);
                         worker.terminate();
-                        reject(err);
+                        reject(new Error(err.message || 'Worker 發生錯誤'));
                     };
                     worker.postMessage({ rowsA, rowsB, colIdxA, colIdxB });
                 });
