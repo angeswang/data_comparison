@@ -712,7 +712,7 @@
                     diffSummary += `- 訂單 ${item.id}: ${itemDiffs.join('; ')}\n`;
                 });
 
-                const userQuery = `你是一位精準的數據稽核員。基於以下數據差異摘要，請用繁體中文、純文字、非條列式的方式，精準地說明兩份檔案之間商品內容與數量的差異來源。例如，是A檔案的某商品數量較多，還是B檔案缺少了某商品。你的回覆必須直接以差異說明開始，且不包含任何符號、標題或開場白。`;
+                const userQuery = `你是一位精準的數據稽核員。基於以下數據差異，請用繁體中文、純文字、條列式的方式，精準地說明兩份檔案之間商品內容與數量的差異。例如，是A檔案的某商品數量較多，還是B檔案缺少了某商品。你的回覆必須直接以差異說明開始，且不包含任何符號、標題或開場白。`;
                 
                 const apiKey = "AIzaSyDOgAFR1mucAKnHBxTiL2o_y_XgsSrRcgg"; 
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
