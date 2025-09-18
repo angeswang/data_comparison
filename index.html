@@ -11,107 +11,127 @@
     <style>
         body {
             font-family: 'Verdana', sans-serif;
+            background-color: #f8fafc; /* Softer background color */
         }
         select:disabled {
-            background-color: #f3f4f6;
+            background-color: #f1f5f9;
             cursor: not-allowed;
             opacity: 0.7;
         }
-        /* 移除 details 標籤的預設箭頭 */
+        /* Custom styles for details/summary */
         summary {
             list-style: none;
+            cursor: pointer;
+            padding: 0.75rem 1rem;
+            background-color: #f1f5f9;
+            border-radius: 0.5rem;
+            transition: background-color 0.2s ease-in-out;
+        }
+        summary:hover {
+            background-color: #e2e8f0;
         }
         summary::-webkit-details-marker {
             display: none;
         }
-        /* 表格樣式優化 */
-        table {
-            table-layout: fixed;
-            width: 100%;
+        .summary-icon {
+            transition: transform 0.2s ease-in-out;
         }
-        td, th {
-            word-wrap: break-word;
+        details[open] .summary-icon {
+            transform: rotate(90deg);
         }
+        /* Table alignment */
+        th.text-left, td.text-left { text-align: left; }
+        th.text-center, td.text-center { text-align: center; }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800 leading-snug">
+<body class="text-slate-800 leading-snug">
 
     <div class="container mx-auto p-4 sm:p-6 md:p-8 max-w-7xl">
-        <header class="text-center mb-8">
-            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900">資料比對工具</h1>
-            <p class="mt-2 text-md sm:text-lg text-gray-600">請上傳兩份檔案，並選擇要比對的欄位。</p>
+        <header class="text-center mb-10">
+            <h1 class="text-4xl sm:text-5xl font-bold text-slate-900">資料比對工具</h1>
+            <p class="mt-3 text-lg text-slate-600">上傳兩份試算表，AI 助您輕鬆核對差異</p>
         </header>
 
         <main>
             <!-- 輸入區 -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
                 <!-- 資料一 區塊 -->
-                <div class="bg-white p-6 rounded-lg shadow-sm border">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-3">資料一</h2>
-                    <div id="dropzoneA" class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md transition-colors duration-200">
-                        <div class="space-y-1 text-center">
-                            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                <div class="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4 border-b border-slate-200 pb-3">資料一</h2>
+                    <div id="dropzoneA" class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-lg transition-colors duration-200 relative">
+                        <div id="dropzoneContentA" class="space-y-1 text-center">
+                            <svg class="mx-auto h-12 w-12 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
                                 <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                             </svg>
-                            <div class="flex text-sm text-gray-600">
+                            <div class="flex text-sm text-slate-600">
                                 <label for="fileA" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500">
                                     <span>選擇檔案</span>
                                     <input id="fileA" name="fileA" type="file" class="sr-only" accept=".csv, .xlsx, .xls">
                                 </label>
                                 <p class="pl-1">或拖曳至此</p>
                             </div>
-                            <p id="fileNameA" class="text-sm text-gray-900 font-semibold mt-2 break-all"></p>
+                        </div>
+                        <div id="fileSuccessA" class="hidden absolute inset-0 bg-green-50/80 backdrop-blur-sm flex flex-col justify-center items-center text-center p-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+                              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                            </svg>
+                            <p id="fileNameA" class="text-sm font-semibold text-green-800 mt-2 break-all"></p>
                         </div>
                     </div>
                      <p id="errorA" class="text-sm text-red-600 font-semibold mt-2 h-5"></p>
                     <!-- 欄位選擇 -->
-                    <div id="columnSelectorsA" class="mt-4 space-y-3">
+                    <div id="columnSelectorsA" class="mt-4 space-y-4">
                         <div>
-                            <label for="idColumnA" class="block text-sm font-medium text-gray-700">ID (Key)</label>
-                            <select id="idColumnA" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" disabled></select>
+                            <label for="idColumnA" class="block text-sm font-medium text-slate-700">ID (Key)</label>
+                            <select id="idColumnA" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" disabled></select>
                         </div>
                         <div>
-                            <label for="itemColumnA" class="block text-sm font-medium text-gray-700">商品/項目</label>
-                            <select id="itemColumnA" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" disabled></select>
+                            <label for="itemColumnA" class="block text-sm font-medium text-slate-700">商品/項目</label>
+                            <select id="itemColumnA" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" disabled></select>
                         </div>
                         <div>
-                            <label for="quantityColumnA" class="block text-sm font-medium text-gray-700">數量</label>
-                            <select id="quantityColumnA" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" disabled></select>
+                            <label for="quantityColumnA" class="block text-sm font-medium text-slate-700">數量</label>
+                            <select id="quantityColumnA" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" disabled></select>
                         </div>
                     </div>
                 </div>
                  <!-- 資料二 區塊 -->
-                <div class="bg-white p-6 rounded-lg shadow-sm border">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-3">資料二</h2>
-                    <div id="dropzoneB" class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md transition-colors duration-200">
-                        <div class="space-y-1 text-center">
-                            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                <div class="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
+                    <h2 class="text-2xl font-bold text-slate-800 mb-4 border-b border-slate-200 pb-3">資料二</h2>
+                    <div id="dropzoneB" class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-lg transition-colors duration-200 relative">
+                        <div id="dropzoneContentB" class="space-y-1 text-center">
+                            <svg class="mx-auto h-12 w-12 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
                                 <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                             </svg>
-                            <div class="flex text-sm text-gray-600">
+                            <div class="flex text-sm text-slate-600">
                                 <label for="fileB" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500">
                                     <span>選擇檔案</span>
                                     <input id="fileB" name="fileB" type="file" class="sr-only" accept=".csv, .xlsx, .xls">
                                 </label>
                                 <p class="pl-1">或拖曳至此</p>
                             </div>
-                            <p id="fileNameB" class="text-sm text-gray-900 font-semibold mt-2 break-all"></p>
+                        </div>
+                         <div id="fileSuccessB" class="hidden absolute inset-0 bg-green-50/80 backdrop-blur-sm flex flex-col justify-center items-center text-center p-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+                              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                            </svg>
+                            <p id="fileNameB" class="text-sm font-semibold text-green-800 mt-2 break-all"></p>
                         </div>
                     </div>
                     <p id="errorB" class="text-sm text-red-600 font-semibold mt-2 h-5"></p>
                      <!-- 欄位選擇 -->
-                    <div id="columnSelectorsB" class="mt-4 space-y-3">
+                    <div id="columnSelectorsB" class="mt-4 space-y-4">
                         <div>
-                            <label for="idColumnB" class="block text-sm font-medium text-gray-700">ID (Key)</label>
-                            <select id="idColumnB" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" disabled></select>
+                            <label for="idColumnB" class="block text-sm font-medium text-slate-700">ID (Key)</label>
+                            <select id="idColumnB" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" disabled></select>
                         </div>
                         <div>
-                            <label for="itemColumnB" class="block text-sm font-medium text-gray-700">商品/項目</label>
-                            <select id="itemColumnB" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" disabled></select>
+                            <label for="itemColumnB" class="block text-sm font-medium text-slate-700">商品/項目</label>
+                            <select id="itemColumnB" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" disabled></select>
                         </div>
                         <div>
-                            <label for="quantityColumnB" class="block text-sm font-medium text-gray-700">數量</label>
-                            <select id="quantityColumnB" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" disabled></select>
+                            <label for="quantityColumnB" class="block text-sm font-medium text-slate-700">數量</label>
+                            <select id="quantityColumnB" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" disabled></select>
                         </div>
                     </div>
                 </div>
@@ -119,95 +139,111 @@
 
             <!-- 操作區 -->
             <div class="text-center mb-8">
-                <button id="compareBtn" class="bg-indigo-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-transform transform hover:scale-105 duration-200 shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+                <button id="compareBtn" class="bg-indigo-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-transform transform hover:scale-105 duration-200 shadow-lg disabled:bg-slate-400 disabled:cursor-not-allowed disabled:transform-none flex items-center gap-2 mx-auto">
+                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
                     開始比對
                 </button>
             </div>
 
             <!-- 結果顯示區 -->
             <div id="resultsContainer" class="hidden">
-                <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
-                    <div class="flex justify-between items-center border-b pb-3 mb-4">
-                        <h2 class="text-2xl font-bold text-gray-900">比對結果</h2>
-                        <div class="flex items-center gap-4">
-                            <button id="resetBtn" class="hidden bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-4 focus:ring-gray-300 transition-transform transform hover:scale-105 duration-200 shadow-md flex items-center gap-2">
+                <div class="bg-white p-6 rounded-xl shadow-xl border border-slate-200">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-200 pb-4 mb-6 gap-4">
+                        <h2 class="text-3xl font-bold text-slate-900">比對結果</h2>
+                        <div class="flex items-center gap-3 self-end sm:self-center">
+                             <button id="resetBtn" class="hidden bg-slate-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-slate-600 focus:outline-none focus:ring-4 focus:ring-slate-300 transition-transform transform hover:scale-105 duration-200 shadow-md flex items-center gap-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                   <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M4 4l16 16" />
                                 </svg>
-                                重置
+                                <span>重置</span>
                             </button>
                             <button id="downloadBtn" class="hidden bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-300 transition-transform transform hover:scale-105 duration-200 shadow-md flex items-center gap-2">
                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                     <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
                                 </svg>
-                                下載 Excel 報告
+                                <span>下載報告</span>
                             </button>
                         </div>
                     </div>
                     
-                    <details id="commonItemSummary" class="mb-4 group">
-                        <summary class="text-xl font-semibold text-gray-800 mb-2 cursor-pointer flex items-center">
-                            <svg class="w-5 h-5 mr-2 transform transition-transform duration-200 group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                            <h3 class="inline">項目加總</h3>
-                        </summary>
-                        <div id="commonItemSummaryTables" class="pl-7 mt-4 flex flex-col md:flex-row gap-4"></div>
-                    </details>
+                    <div class="space-y-4">
+                        <details id="commonItemSummary" class="group">
+                            <summary class="flex items-center justify-between">
+                                <h3 class="text-xl font-semibold text-slate-800">項目加總</h3>
+                                <svg class="w-5 h-5 mr-2 summary-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                            </summary>
+                            <div id="commonItemSummaryTables" class="p-4 mt-2 bg-slate-50 rounded-b-lg flex flex-col md:flex-row gap-6"></div>
+                        </details>
 
-                    <details id="consistentResults" class="mb-4 group border-t pt-4">
-                        <summary class="text-xl font-semibold text-gray-800 mb-2 cursor-pointer flex items-center">
-                            <svg class="w-5 h-5 mr-2 transform transition-transform duration-200 group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                            <h3 class="inline consistent-header"></h3>
-                        </summary>
-                        <p id="consistentExplanation" class="hidden text-gray-600 mt-2 pl-7"></p>
-                        <div id="consistentList" class="flex flex-wrap gap-2 mt-2 pl-7"></div>
-                    </details>
-                    
-                    <details id="inconsistentResults" class="border-t pt-4 group">
-                        <summary class="text-xl font-semibold text-gray-800 mb-3 cursor-pointer flex items-center">
-                            <svg class="w-5 h-5 mr-2 transform transition-transform duration-200 group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                            <h3 class="inline">相同訂單，內容有差異<span id="inconsistentCount" class="ml-1"></span></h3>
-                        </summary>
-                        <!-- AI Analysis Section -->
-                        <div id="aiAnalysisSection" class="pl-7 mt-4 hidden">
-                            <h4 class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 text-indigo-500" viewBox="0 0 20 20" fill="currentColor">
-                                  <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd" />
-                                </svg>
-                                AI 智能分析
-                            </h4>
-                            <div id="aiAnalysisResult" class="bg-indigo-50 border-l-4 border-indigo-500 text-indigo-800 p-4 rounded-r-lg min-h-[50px]">
-                                <div id="aiLoading" class="flex items-center">
-                                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    <span>分析中，請稍候...</span>
-                                </div>
-                                <p id="aiContent" class="hidden whitespace-pre-wrap"></p>
-                                <p id="aiError" class="hidden text-red-600 font-semibold">分析失敗，請稍後再試。</p>
+                        <details id="consistentResults" class="group">
+                            <summary class="flex items-center justify-between">
+                                <h3 class="text-xl font-semibold text-slate-800 consistent-header"></h3>
+                                <svg class="w-5 h-5 mr-2 summary-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                            </summary>
+                            <div class="p-4 mt-2 bg-slate-50 rounded-b-lg">
+                                <p id="consistentExplanation" class="hidden text-slate-600 mb-4"></p>
+                                <div id="consistentList" class="flex flex-wrap gap-2"></div>
                             </div>
-                        </div>
-                        <div id="inconsistentList" class="space-y-4 pl-7 mt-4"></div>
-                    </details>
+                        </details>
+                        
+                        <details id="inconsistentResults" class="group">
+                            <summary class="flex items-center justify-between">
+                                <h3 class="text-xl font-semibold text-slate-800">相同訂單，內容有差異<span id="inconsistentCount" class="ml-1 font-bold"></span></h3>
+                                <svg class="w-5 h-5 mr-2 summary-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                            </summary>
+                            <div class="p-4 mt-2 bg-slate-50 rounded-b-lg space-y-4">
+                                <!-- AI Analysis Section -->
+                                <div id="aiAnalysisSection" class="hidden">
+                                    <h4 class="text-lg font-semibold text-slate-800 mb-2 flex items-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 text-indigo-500" viewBox="0 0 20 20" fill="currentColor">
+                                          <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd" />
+                                        </svg>
+                                        AI 智能分析
+                                    </h4>
+                                    <div id="aiAnalysisResult" class="bg-indigo-50 border-l-4 border-indigo-500 text-indigo-900 p-4 rounded-r-lg min-h-[50px]">
+                                        <div id="aiLoading" class="flex items-center text-indigo-700">
+                                            <svg class="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            <span>分析中，請稍候...</span>
+                                        </div>
+                                        <p id="aiContent" class="hidden whitespace-pre-wrap"></p>
+                                        <p id="aiError" class="hidden text-red-600 font-semibold">分析失敗，請稍後再試。</p>
+                                    </div>
+                                </div>
+                                <div id="inconsistentList" class="space-y-6"></div>
+                            </div>
+                        </details>
 
-                    <details id="uniqueAResults" class="mt-4 group border-t pt-4">
-                        <summary class="text-xl font-semibold text-gray-800 mb-3 cursor-pointer flex items-center">
-                             <svg class="w-5 h-5 mr-2 transform transition-transform duration-200 group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                            <h3 class="inline unique-header"></h3>
-                        </summary>
-                        <div id="uniqueAList" class="flex flex-wrap gap-2 mt-2 pl-7"></div>
-                    </details>
+                        <details id="uniqueAResults" class="group">
+                             <summary class="flex items-center justify-between">
+                                <h3 class="text-xl font-semibold text-slate-800 unique-header"></h3>
+                                <svg class="w-5 h-5 mr-2 summary-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                            </summary>
+                            <div class="p-4 mt-2 bg-slate-50 rounded-b-lg">
+                                <div id="uniqueAList" class="flex flex-wrap gap-2"></div>
+                             </div>
+                        </details>
 
-                    <details id="uniqueBResults" class="mt-4 group border-t pt-4">
-                         <summary class="text-xl font-semibold text-gray-800 mb-3 cursor-pointer flex items-center">
-                             <svg class="w-5 h-5 mr-2 transform transition-transform duration-200 group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                            <h3 class="inline unique-header"></h3>
-                        </summary>
-                        <div id="uniqueBList" class="flex flex-wrap gap-2 mt-2 pl-7"></div>
-                    </details>
+                        <details id="uniqueBResults" class="group">
+                             <summary class="flex items-center justify-between">
+                                <h3 class="text-xl font-semibold text-slate-800 unique-header"></h3>
+                                <svg class="w-5 h-5 mr-2 summary-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                            </summary>
+                            <div class="p-4 mt-2 bg-slate-50 rounded-b-lg">
+                                <div id="uniqueBList" class="flex flex-wrap gap-2"></div>
+                            </div>
+                        </details>
+                    </div>
                 </div>
             </div>
         </main>
+        <footer class="text-center mt-12 text-slate-500 text-sm">
+            <p>由 Gemini AI 驅動</p>
+        </footer>
     </div>
 
     <script>
@@ -221,6 +257,10 @@
             const errorBDisplay = document.getElementById('errorB');
             const dropzoneA = document.getElementById('dropzoneA');
             const dropzoneB = document.getElementById('dropzoneB');
+            const dropzoneContentA = document.getElementById('dropzoneContentA');
+            const dropzoneContentB = document.getElementById('dropzoneContentB');
+            const fileSuccessA = document.getElementById('fileSuccessA');
+            const fileSuccessB = document.getElementById('fileSuccessB');
             
             const columnSelectorsA = document.getElementById('columnSelectorsA');
             const columnSelectorsB = document.getElementById('columnSelectorsB');
@@ -295,8 +335,12 @@
                 fileNameBDisplay.textContent = '';
                 errorADisplay.textContent = '';
                 errorBDisplay.textContent = '';
-                dropzoneA.classList.remove('border-indigo-500');
-                dropzoneB.classList.remove('border-indigo-500');
+                dropzoneA.classList.remove('border-indigo-500', 'border-red-500');
+                dropzoneB.classList.remove('border-indigo-500', 'border-red-500');
+                fileSuccessA.classList.add('hidden');
+                fileSuccessB.classList.add('hidden');
+                dropzoneContentA.classList.remove('hidden');
+                dropzoneContentB.classList.remove('hidden');
 
                 // Clear and disable selectors
                 clearSelectors({ id: idColumnA, item: itemColumnA, quantity: quantityColumnA });
@@ -318,18 +362,14 @@
             
             /**
              * Sets up the drag-and-drop zone and file input handling.
-             * @param {HTMLInputElement} input - The file input element.
-             * @param {HTMLElement} display - The element to show the file name.
-             * @param {HTMLElement} errorDisplay - The element to show error messages.
-             * @param {HTMLElement} dropzone - The dropzone element.
-             * @param {object} selectors - The column selector elements.
-             * @param {object} dataStore - An object to store the parsed file data.
              */
-            function setupDropzone(input, display, errorDisplay, dropzone, selectors, dataStore) {
+            function setupDropzone(input, nameDisplay, errorDisplay, dropzone, content, success, selectors, dataStore) {
                 const handleFile = async (file) => {
                     if (!file) return;
                     
-                    display.textContent = `讀取中... ${file.name}`;
+                    content.classList.remove('hidden');
+                    success.classList.add('hidden');
+                    nameDisplay.textContent = `讀取中...`;
                     errorDisplay.textContent = '';
                     dropzone.classList.remove('border-red-500');
                     dropzone.classList.add('border-indigo-500');
@@ -338,11 +378,15 @@
                         const rows = await readFile(file);
                         dataStore.data = rows;
                         populateColumnSelectors(rows[0] || [], selectors);
-                        display.textContent = file.name;
+                        nameDisplay.textContent = file.name;
+                        content.classList.add('hidden');
+                        success.classList.remove('hidden');
                     } catch (e) {
                         errorDisplay.textContent = `讀取 ${file.name} 失敗: ${e.message}`;
                         dropzone.classList.add('border-red-500');
-                        display.textContent = '';
+                        nameDisplay.textContent = '';
+                        success.classList.add('hidden');
+                        content.classList.remove('hidden');
                         dataStore.data = null;
                         clearSelectors(selectors);
                     }
@@ -350,23 +394,24 @@
                 };
 
                 input.addEventListener('change', () => handleFile(input.files[0]));
+                
+                dropzone.addEventListener('click', () => input.click());
 
                 ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => dropzone.addEventListener(eventName, e => {e.preventDefault(); e.stopPropagation();}, false));
-                ['dragenter', 'dragover'].forEach(eventName => dropzone.addEventListener(eventName, () => dropzone.classList.add('bg-gray-100', 'border-indigo-500'), false));
-                ['dragleave', 'drop'].forEach(eventName => dropzone.addEventListener(eventName, () => dropzone.classList.remove('bg-gray-100'), false));
+                ['dragenter', 'dragover'].forEach(eventName => dropzone.addEventListener(eventName, () => dropzone.classList.add('bg-indigo-50', 'border-indigo-500'), false));
+                ['dragleave', 'drop'].forEach(eventName => dropzone.addEventListener(eventName, () => dropzone.classList.remove('bg-indigo-50'), false));
                 dropzone.addEventListener('drop', (e) => {
+                    dropzone.classList.remove('bg-indigo-50');
                     input.files = e.dataTransfer.files;
                     handleFile(input.files[0]);
                 }, false);
             }
             
-            setupDropzone(fileAInput, fileNameADisplay, errorADisplay, dropzoneA, {id: idColumnA, item: itemColumnA, quantity: quantityColumnA}, { set data(val) { fileDataA = val; } });
-            setupDropzone(fileBInput, fileNameBDisplay, errorBDisplay, dropzoneB, {id: idColumnB, item: itemColumnB, quantity: quantityColumnB}, { set data(val) { fileDataB = val; } });
+            setupDropzone(fileAInput, fileNameADisplay, errorADisplay, dropzoneA, dropzoneContentA, fileSuccessA, {id: idColumnA, item: itemColumnA, quantity: quantityColumnA}, { set data(val) { fileDataA = val; } });
+            setupDropzone(fileBInput, fileNameBDisplay, errorBDisplay, dropzoneB, dropzoneContentB, fileSuccessB, {id: idColumnB, item: itemColumnB, quantity: quantityColumnB}, { set data(val) { fileDataB = val; } });
 
             /**
              * Automatically selects columns based on header keywords.
-             * @param {string[]} headers - Array of header names.
-             * @param {object} selectors - The column selector elements.
              */
             function autoSelectColumns(headers, selectors) {
                 const idKeywords = ['id', 'key', '訂單', '單號', '編號'];
@@ -392,7 +437,6 @@
                 findAndAssign(itemKeywords, selectors.item);
                 findAndAssign(idKeywords, selectors.id);
                 
-                // Fallback for any not found selectors
                 [selectors.id, selectors.item, selectors.quantity].forEach(sel => {
                     if (!sel.value) {
                          const availableIndex = headers.findIndex((h, i) => !assignedIndices.has(i));
@@ -404,11 +448,6 @@
                 });
             }
 
-            /**
-             * Populates the dropdown selectors with header columns.
-             * @param {string[]} headers - Array of header names.
-             * @param {object} selectors - The column selector elements.
-             */
             function populateColumnSelectors(headers, selectors) {
                 [selectors.id, selectors.item, selectors.quantity].forEach(sel => {
                     sel.innerHTML = '<option value="">請選擇...</option>';
@@ -445,9 +484,13 @@
                 }
 
                 compareBtn.disabled = true;
-                compareBtn.textContent = '比對中...';
+                compareBtn.innerHTML = `
+                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    比對中...`;
                 
-                // Use setTimeout to allow UI to update before heavy computation
                 setTimeout(() => {
                     try {
                         parsedDataA = parseData(fileDataA, colIdxA);
@@ -459,16 +502,15 @@
                         alert(`比對過程中發生錯誤: ${error.message}`);
                     } finally {
                         checkIfReady();
-                        compareBtn.textContent = '開始比對';
+                        compareBtn.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        開始比對`;
                     }
                 }, 10);
             }
 
-            /**
-             * Reads a file and returns its content as an array of arrays.
-             * @param {File} file - The file to read.
-             * @returns {Promise<Array<Array<string>>>} A promise that resolves with the file content.
-             */
             function readFile(file) {
                 return new Promise((resolve, reject) => {
                     const reader = new FileReader();
@@ -499,15 +541,8 @@
                 });
             }
             
-            /**
-             * Parses the raw data into a structured map for comparison.
-             * @param {Array<Array<string>>} dataArray - The raw data from the file.
-             * @param {object} colIdx - The indices for ID, item, and quantity columns.
-             * @returns {object} A map where keys are IDs and values are item-quantity maps.
-             */
             function parseData(dataArray, colIdx) {
                 const dataMap = {};
-                // Start from 1 to skip header row
                 for (let i = 1; i < dataArray.length; i++) {
                     const row = dataArray[i];
                     if (!row || row.length <= Math.max(colIdx.id, colIdx.item, colIdx.quantity)) continue;
@@ -524,12 +559,6 @@
                 return dataMap;
             }
 
-            /**
-             * Compares two parsed data maps.
-             * @param {object} dataA - The first parsed data map.
-             * @param {object} dataB - The second parsed data map.
-             * @returns {object} An object containing the comparison results.
-             */
             function compareData(dataA, dataB) {
                 const allIds = new Set([...Object.keys(dataA), ...Object.keys(dataB)]);
                 const results = { inconsistent: [], uniqueToA: [], uniqueToB: [], consistent: [] };
@@ -564,7 +593,6 @@
             }
 
             async function displayResults(results, fileNameA, fileNameB) {
-                // --- Reset all sections ---
                 [commonItemSummarySection, consistentResultsSection, inconsistentResultsSection, uniqueAResultsSection, uniqueBResultsSection].forEach(el => {
                     el.style.display = 'none';
                     el.open = false;
@@ -572,7 +600,6 @@
 
                 const commonIds = [...results.consistent, ...results.inconsistent.map(item => item.id)];
                 
-                // --- Handle Common Item Summary ---
                 if (commonIds.length > 0) {
                     const summaryA = {};
                     const summaryB = {};
@@ -594,14 +621,13 @@
                     const buildSummaryTable = (summaryData, title) => {
                         if (Object.keys(summaryData).length === 0) return '';
                         let rowsHtml = Object.entries(summaryData).sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
-                            .map(([itemName, totalQty]) => `<tr class="text-sm"><td class="border px-2 py-1">${itemName}</td><td class="border px-2 py-1 text-center">${totalQty}</td></tr>`).join('');
-                        return `<div class="flex-1"><h5 class="font-semibold mb-1 text-center text-gray-700">${title}</h5><table class="w-full border-collapse text-gray-800"><thead class="bg-gray-100 text-xs"><tr><th class="border px-2 py-1 font-medium">商品</th><th class="border px-2 py-1 font-medium">總數量</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+                            .map(([itemName, totalQty]) => `<tr class="text-sm"><td class="border border-slate-200 px-3 py-2 text-left">${itemName}</td><td class="border border-slate-200 px-3 py-2 text-center">${totalQty}</td></tr>`).join('');
+                        return `<div class="flex-1 min-w-0"><h5 class="font-semibold mb-2 text-center text-slate-700">${title}</h5><table class="w-full border-collapse text-slate-800"><thead class="bg-slate-100 text-sm"><tr><th class="border border-slate-200 px-3 py-2 font-medium text-left">商品</th><th class="border border-slate-200 px-3 py-2 font-medium text-center">總數量</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
                     };
                     commonItemSummaryTables.innerHTML = `${buildSummaryTable(summaryA, fileNameA)}${buildSummaryTable(summaryB, fileNameB)}`;
                     commonItemSummarySection.style.display = 'block';
                 }
 
-                // --- Handle Consistent Results ---
                 if (results.consistent.length > 0) {
                     if (results.inconsistent.length === 0 && results.uniqueToA.length === 0 && results.uniqueToB.length === 0) {
                         consistentHeader.textContent = `比對完成：所有訂單內容皆相符（共 ${results.consistent.length} 筆）`;
@@ -611,44 +637,41 @@
                         consistentHeader.textContent = `相同訂單，內容無差異（共 ${results.consistent.length} 筆）`;
                         consistentExplanation.classList.add('hidden');
                     }
-                    consistentList.innerHTML = results.consistent.map(id => `<span class="bg-gray-200 text-gray-800 text-sm font-medium px-3 py-1 rounded-full">${id}</span>`).join('');
+                    consistentList.innerHTML = results.consistent.map(id => `<span class="bg-slate-200 text-slate-800 text-sm font-medium px-3 py-1 rounded-full">${id}</span>`).join('');
                     consistentResultsSection.style.display = 'block';
                 }
 
-                // --- Handle Inconsistent Results ---
                 if (results.inconsistent.length > 0) {
                     inconsistentCountSpan.textContent = `（共 ${results.inconsistent.length} 筆）`;
                     inconsistentList.innerHTML = results.inconsistent.map(item => {
                         const allItems = new Set([...Object.keys(item.itemsA), ...Object.keys(item.itemsB)]);
                         const buildTableRows = (currentItems, otherItems) => {
-                            let rowsHtml = '';
                             const sortedItems = Array.from(allItems).sort();
-                            sortedItems.forEach(itemName => {
+                            if (sortedItems.length === 0) return '<tr><td colspan="2" class="border border-slate-200 px-3 py-2 text-center text-slate-500 italic">無項目</td></tr>';
+                            return sortedItems.map(itemName => {
                                 const currentQty = currentItems[itemName] || 0;
                                 const otherQty = otherItems[itemName] || 0;
                                 const isDiff = currentQty !== otherQty;
                                 const rowClass = isDiff ? 'bg-red-50' : '';
-                                rowsHtml += `<tr class="${rowClass} text-sm"><td class="border px-2 py-1">${itemName}</td><td class="border px-2 py-1 text-center">${currentQty}</td></tr>`;
-                            });
-                            return rowsHtml;
+                                return `<tr class="${rowClass} text-sm"><td class="border border-slate-200 px-3 py-2 text-left">${itemName}</td><td class="border border-slate-200 px-3 py-2 text-center">${currentQty}</td></tr>`;
+                            }).join('');
                         };
-                        const tableA = `<div class="flex-1"><h5 class="font-semibold mb-1 text-center text-gray-700">${fileNameA}</h5><table class="w-full border-collapse text-gray-800"><thead class="bg-gray-100 text-xs"><tr><th class="border px-2 py-1 font-medium">商品</th><th class="border px-2 py-1 font-medium">數量</th></tr></thead><tbody>${buildTableRows(item.itemsA, item.itemsB)}</tbody></table></div>`;
-                        const tableB = `<div class="flex-1"><h5 class="font-semibold mb-1 text-center text-gray-700">${fileNameB}</h5><table class="w-full border-collapse text-gray-800"><thead class="bg-gray-100 text-xs"><tr><th class="border px-2 py-1 font-medium">商品</th><th class="border px-2 py-1 font-medium">數量</th></tr></thead><tbody>${buildTableRows(item.itemsB, item.itemsA)}</tbody></table></div>`;
-                        return `<div class="bg-gray-50 border border-gray-200 rounded-lg p-4"><p class="text-lg font-bold text-indigo-700 mb-3">訂單 ID: ${item.id}</p><div class="flex flex-col md:flex-row gap-4">${tableA}${tableB}</div></div>`;
+                        const tableA = `<div class="flex-1 min-w-0"><h5 class="font-semibold mb-2 text-center text-slate-700">${fileNameA}</h5><table class="w-full border-collapse text-slate-800"><thead class="bg-slate-100 text-sm"><tr><th class="border border-slate-200 px-3 py-2 font-medium text-left">商品</th><th class="border border-slate-200 px-3 py-2 font-medium text-center">數量</th></tr></thead><tbody>${buildTableRows(item.itemsA, item.itemsB)}</tbody></table></div>`;
+                        const tableB = `<div class="flex-1 min-w-0"><h5 class="font-semibold mb-2 text-center text-slate-700">${fileNameB}</h5><table class="w-full border-collapse text-slate-800"><thead class="bg-slate-100 text-sm"><tr><th class="border border-slate-200 px-3 py-2 font-medium text-left">商品</th><th class="border border-slate-200 px-3 py-2 font-medium text-center">数量</th></tr></thead><tbody>${buildTableRows(item.itemsB, item.itemsA)}</tbody></table></div>`;
+                        return `<div class="bg-slate-50/50 border border-slate-200 rounded-lg p-4"><p class="text-lg font-bold text-indigo-700 mb-3">訂單 ID: ${item.id}</p><div class="flex flex-col md:flex-row gap-6">${tableA}${tableB}</div></div>`;
                     }).join('');
                     inconsistentResultsSection.style.display = 'block';
                     analyzeDifferencesWithAI(results, fileNameA, fileNameB);
                 }
 
-                // --- Handle Unique Results ---
                 if (results.uniqueToA.length > 0) {
                     uniqueAHeader.textContent = `僅存在於 ${fileNameA} 的訂單（共 ${results.uniqueToA.length} 筆）`;
-                    uniqueAList.innerHTML = results.uniqueToA.map(id => `<span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full">${id}</span>`).join('');
+                    uniqueAList.innerHTML = results.uniqueToA.length > 0 ? results.uniqueToA.map(id => `<span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full">${id}</span>`).join('') : '<p class="text-slate-500 italic">無</p>';
                     uniqueAResultsSection.style.display = 'block';
                 }
                 if (results.uniqueToB.length > 0) {
                     uniqueBHeader.textContent = `僅存在於 ${fileNameB} 的訂單（共 ${results.uniqueToB.length} 筆）`;
-                    uniqueBList.innerHTML = results.uniqueToB.map(id => `<span class="bg-green-100 text-green-800 text-sm font-medium px-3 py-1 rounded-full">${id}</span>`).join('');
+                    uniqueBList.innerHTML = results.uniqueToB.length > 0 ? results.uniqueToB.map(id => `<span class="bg-green-100 text-green-800 text-sm font-medium px-3 py-1 rounded-full">${id}</span>`).join('') : '<p class="text-slate-500 italic">無</p>';
                     uniqueBResultsSection.style.display = 'block';
                 }
                 
@@ -771,4 +794,3 @@
     </script>
 </body>
 </html>
-
