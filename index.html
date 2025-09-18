@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>資料比對工具</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入檔案解析函式庫 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
@@ -54,9 +53,7 @@
         </header>
 
         <main>
-            <!-- 輸入區 -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
-                <!-- 資料一 區塊 -->
                 <div class="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
                     <h2 class="text-2xl font-bold text-slate-800 mb-4 border-b border-slate-200 pb-3">資料一</h2>
                     <div id="dropzoneA" class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-lg transition-colors duration-200 relative">
@@ -80,7 +77,6 @@
                         </div>
                     </div>
                      <p id="errorA" class="text-sm text-red-600 font-semibold mt-2 h-5"></p>
-                    <!-- 欄位選擇 -->
                     <div id="columnSelectorsA" class="mt-4 space-y-4">
                         <div>
                             <label for="idColumnA" class="block text-sm font-medium text-slate-700">ID (Key)</label>
@@ -96,8 +92,7 @@
                         </div>
                     </div>
                 </div>
-                 <!-- 資料二 區塊 -->
-                <div class="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
+                 <div class="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
                     <h2 class="text-2xl font-bold text-slate-800 mb-4 border-b border-slate-200 pb-3">資料二</h2>
                     <div id="dropzoneB" class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-lg transition-colors duration-200 relative">
                         <div id="dropzoneContentB" class="space-y-1 text-center">
@@ -120,8 +115,7 @@
                         </div>
                     </div>
                     <p id="errorB" class="text-sm text-red-600 font-semibold mt-2 h-5"></p>
-                     <!-- 欄位選擇 -->
-                    <div id="columnSelectorsB" class="mt-4 space-y-4">
+                     <div id="columnSelectorsB" class="mt-4 space-y-4">
                         <div>
                             <label for="idColumnB" class="block text-sm font-medium text-slate-700">ID (Key)</label>
                             <select id="idColumnB" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" disabled></select>
@@ -138,7 +132,6 @@
                 </div>
             </div>
 
-            <!-- 操作區 -->
             <div class="text-center mb-8">
                 <button id="compareBtn" class="bg-indigo-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-transform transform hover:scale-105 duration-200 shadow-lg disabled:bg-slate-400 disabled:cursor-not-allowed disabled:transform-none flex items-center gap-2 mx-auto">
                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -148,7 +141,6 @@
                 </button>
             </div>
 
-            <!-- 結果顯示區 -->
             <div id="resultsContainer" class="hidden">
                 <div class="bg-white p-6 rounded-xl shadow-xl border border-slate-200">
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-200 pb-4 mb-6 gap-4">
@@ -195,7 +187,6 @@
                                 <svg class="w-5 h-5 mr-2 summary-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
                             </summary>
                             <div class="p-4 mt-2 bg-slate-50 rounded-b-lg space-y-4">
-                                <!-- AI Analysis Section -->
                                 <div id="aiAnalysisSection" class="hidden">
                                     <h4 class="text-lg font-semibold text-slate-800 mb-2 flex items-center">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 text-indigo-500" viewBox="0 0 20 20" fill="currentColor">
@@ -396,7 +387,19 @@
 
                 input.addEventListener('change', () => handleFile(input.files[0]));
                 
-                dropzone.addEventListener('click', () => input.click());
+                // --- FIX START ---
+                // This listener now checks the click target to prevent double-firing.
+                dropzone.addEventListener('click', (e) => {
+                    // The label for the input will trigger the file dialog on its own.
+                    // To prevent opening the dialog twice, we check if the click
+                    // originated from the label or an element within it. If so, we do nothing.
+                    if (e.target.closest(`label[for="${input.id}"]`)) {
+                        return;
+                    }
+                    // Otherwise, trigger the file input to open the dialog.
+                    input.click();
+                });
+                // --- FIX END ---
 
                 ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => dropzone.addEventListener(eventName, e => {e.preventDefault(); e.stopPropagation();}, false));
                 ['dragenter', 'dragover'].forEach(eventName => dropzone.addEventListener(eventName, () => dropzone.classList.add('bg-indigo-50', 'border-indigo-500'), false));
@@ -711,8 +714,8 @@
 
                 const userQuery = `你是一位精準的數據稽核員。基於以下數據差異摘要，請用繁體中文、純文字、非條列式的方式，精準地說明兩份檔案之間商品內容與數量的差異來源。例如，是A檔案的某商品數量較多，還是B檔案缺少了某商品。你的回覆必須直接以差異說明開始，且不包含任何符號、標題或開場白。`;
                 
-                const apiKey = ""; 
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+                const apiKey = "AIzaSyDOgAFR1mucAKnHBxTiL2o_y_XgsSrRcgg"; 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
                 
                 try {
                     const response = await fetch(apiUrl, {
