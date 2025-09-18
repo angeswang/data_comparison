@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>資料比對工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入檔案解析函式庫 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        body {
+            font-family: 'Verdana', sans-serif;
+        }
+        select:disabled {
+            background-color: #f3f4f6;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        /* 移除 details 標籤的預設箭頭 */
+        summary {
+            list-style: none;
+        }
+        summary::-webkit-details-marker {
+            display: none;
+        }
+        /* 表格樣式優化 */
+        table {
+            table-layout: fixed;
+            width: 100%;
+        }
+        td, th {
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 leading-snug">
+
+    <div class="container mx-auto p-4 sm:p-6 md:p-8 max-w-7xl">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900">資料比對工具</h1>
+            <p class="mt-2 text-md sm:text-lg text-gray-600">請上傳兩份檔案，並選擇要比對的欄位。</p>
+        </header>
+
+        <main>
+            <!-- 輸入區 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
+                <!-- 資料一 區塊 -->
+                <div class="bg-white p-6 rounded-lg shadow-sm border">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-3">資料一</h2>
+                    <div id="dropzoneA" class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md transition-colors duration-200">
+                        <div class="space-y-1 text-center">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            <div class="flex text-sm text-gray-600">
+                                <label for="fileA" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500">
+                                    <span>選擇檔案</span>
+                                    <input id="fileA" name="fileA" type="file" class="sr-only" accept=".csv, .xlsx, .xls">
+                                </label>
+                                <p class="pl-1">或拖曳至此</p>
+                            </div>
+                            <p id="fileNameA" class="text-sm text-gray-900 font-semibold mt-2 break-all"></p>
+                        </div>
+                    </div>
+                     <p id="errorA" class="text-sm text-red-600 font-semibold mt-2 h-5"></p>
+                    <!-- 欄位選擇 -->
+                    <div id="columnSelectorsA" class="mt-4 space-y-3">
+                        <div>
+                            <label for="idColumnA" class="block text-sm font-medium text-gray-700">ID (Key)</label>
+                            <select id="idColumnA" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" disabled></select>
+                        </div>
+                        <div>
+                            <label for="itemColumnA" class="block text-sm font-medium text-gray-700">商品/項目</label>
+                            <select id="itemColumnA" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" disabled></select>
+                        </div>
+                        <div>
+                            <label for="quantityColumnA" class="block text-sm font-medium text-gray-700">數量</label>
+                            <select id="quantityColumnA" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" disabled></select>
+                        </div>
+                    </div>
+                </div>
+                 <!-- 資料二 區塊 -->
+                <div class="bg-white p-6 rounded-lg shadow-sm border">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-3">資料二</h2>
+                    <div id="dropzoneB" class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md transition-colors duration-200">
+                        <div class="space-y-1 text-center">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            <div class="flex text-sm text-gray-600">
+                                <label for="fileB" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500">
+                                    <span>選擇檔案</span>
+                                    <input id="fileB" name="fileB" type="file" class="sr-only" accept=".csv, .xlsx, .xls">
+                                </label>
+                                <p class="pl-1">或拖曳至此</p>
+                            </div>
+                            <p id="fileNameB" class="text-sm text-gray-900 font-semibold mt-2 break-all"></p>
+                        </div>
+                    </div>
+                    <p id="errorB" class="text-sm text-red-600 font-semibold mt-2 h-5"></p>
+                     <!-- 欄位選擇 -->
+                    <div id="columnSelectorsB" class="mt-4 space-y-3">
+                        <div>
+                            <label for="idColumnB" class="block text-sm font-medium text-gray-700">ID (Key)</label>
+                            <select id="idColumnB" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" disabled></select>
+                        </div>
+                        <div>
+                            <label for="itemColumnB" class="block text-sm font-medium text-gray-700">商品/項目</label>
+                            <select id="itemColumnB" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" disabled></select>
+                        </div>
+                        <div>
+                            <label for="quantityColumnB" class="block text-sm font-medium text-gray-700">數量</label>
+                            <select id="quantityColumnB" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" disabled></select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作區 -->
+            <div class="text-center mb-8">
+                <button id="compareBtn" class="bg-indigo-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-transform transform hover:scale-105 duration-200 shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+                    開始比對
+                </button>
+            </div>
+
+            <!-- 結果顯示區 -->
+            <div id="resultsContainer" class="hidden">
+                <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
+                    <div class="flex justify-between items-center border-b pb-3 mb-4">
+                        <h2 class="text-2xl font-bold text-gray-900">比對結果</h2>
+                        <div class="flex items-center gap-4">
+                            <button id="resetBtn" class="hidden bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-4 focus:ring-gray-300 transition-transform transform hover:scale-105 duration-200 shadow-md flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M4 4l16 16" />
+                                </svg>
+                                重置
+                            </button>
+                            <button id="downloadBtn" class="hidden bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-300 transition-transform transform hover:scale-105 duration-200 shadow-md flex items-center gap-2">
+                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                </svg>
+                                下載 Excel 報告
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <details id="commonItemSummary" class="mb-4 group">
+                        <summary class="text-xl font-semibold text-gray-800 mb-2 cursor-pointer flex items-center">
+                            <svg class="w-5 h-5 mr-2 transform transition-transform duration-200 group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                            <h3 class="inline">項目加總</h3>
+                        </summary>
+                        <div id="commonItemSummaryTables" class="pl-7 mt-4 flex flex-col md:flex-row gap-4"></div>
+                    </details>
+
+                    <details id="consistentResults" class="mb-4 group border-t pt-4">
+                        <summary class="text-xl font-semibold text-gray-800 mb-2 cursor-pointer flex items-center">
+                            <svg class="w-5 h-5 mr-2 transform transition-transform duration-200 group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                            <h3 class="inline consistent-header"></h3>
+                        </summary>
+                        <p id="consistentExplanation" class="hidden text-gray-600 mt-2 pl-7"></p>
+                        <div id="consistentList" class="flex flex-wrap gap-2 mt-2 pl-7"></div>
+                    </details>
+                    
+                    <details id="inconsistentResults" class="border-t pt-4 group">
+                        <summary class="text-xl font-semibold text-gray-800 mb-3 cursor-pointer flex items-center">
+                            <svg class="w-5 h-5 mr-2 transform transition-transform duration-200 group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                            <h3 class="inline">相同訂單，內容有差異<span id="inconsistentCount" class="ml-1"></span></h3>
+                        </summary>
+                        <!-- AI Analysis Section -->
+                        <div id="aiAnalysisSection" class="pl-7 mt-4 hidden">
+                            <h4 class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 text-indigo-500" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd" />
+                                </svg>
+                                AI 智能分析
+                            </h4>
+                            <div id="aiAnalysisResult" class="bg-indigo-50 border-l-4 border-indigo-500 text-indigo-800 p-4 rounded-r-lg min-h-[50px]">
+                                <div id="aiLoading" class="flex items-center">
+                                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span>分析中，請稍候...</span>
+                                </div>
+                                <p id="aiContent" class="hidden whitespace-pre-wrap"></p>
+                                <p id="aiError" class="hidden text-red-600 font-semibold">分析失敗，請稍後再試。</p>
+                            </div>
+                        </div>
+                        <div id="inconsistentList" class="space-y-4 pl-7 mt-4"></div>
+                    </details>
+
+                    <details id="uniqueAResults" class="mt-4 group border-t pt-4">
+                        <summary class="text-xl font-semibold text-gray-800 mb-3 cursor-pointer flex items-center">
+                             <svg class="w-5 h-5 mr-2 transform transition-transform duration-200 group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                            <h3 class="inline unique-header"></h3>
+                        </summary>
+                        <div id="uniqueAList" class="flex flex-wrap gap-2 mt-2 pl-7"></div>
+                    </details>
+
+                    <details id="uniqueBResults" class="mt-4 group border-t pt-4">
+                         <summary class="text-xl font-semibold text-gray-800 mb-3 cursor-pointer flex items-center">
+                             <svg class="w-5 h-5 mr-2 transform transition-transform duration-200 group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                            <h3 class="inline unique-header"></h3>
+                        </summary>
+                        <div id="uniqueBList" class="flex flex-wrap gap-2 mt-2 pl-7"></div>
+                    </details>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Element Selection ---
+            const fileAInput = document.getElementById('fileA');
+            const fileBInput = document.getElementById('fileB');
+            const fileNameADisplay = document.getElementById('fileNameA');
+            const fileNameBDisplay = document.getElementById('fileNameB');
+            const errorADisplay = document.getElementById('errorA');
+            const errorBDisplay = document.getElementById('errorB');
+            const dropzoneA = document.getElementById('dropzoneA');
+            const dropzoneB = document.getElementById('dropzoneB');
+            
+            const columnSelectorsA = document.getElementById('columnSelectorsA');
+            const columnSelectorsB = document.getElementById('columnSelectorsB');
+            const idColumnA = document.getElementById('idColumnA');
+            const itemColumnA = document.getElementById('itemColumnA');
+            const quantityColumnA = document.getElementById('quantityColumnA');
+            const idColumnB = document.getElementById('idColumnB');
+            const itemColumnB = document.getElementById('itemColumnB');
+            const quantityColumnB = document.getElementById('quantityColumnB');
+            
+            const compareBtn = document.getElementById('compareBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const resultsContainer = document.getElementById('resultsContainer');
+
+            const commonItemSummarySection = document.getElementById('commonItemSummary');
+            const commonItemSummaryTables = document.getElementById('commonItemSummaryTables');
+
+            const consistentResultsSection = document.getElementById('consistentResults');
+            const consistentList = document.getElementById('consistentList');
+            const consistentExplanation = document.getElementById('consistentExplanation');
+            const consistentHeader = consistentResultsSection.querySelector('.consistent-header');
+            
+            const inconsistentResultsSection = document.getElementById('inconsistentResults');
+            const inconsistentList = document.getElementById('inconsistentList');
+            const inconsistentCountSpan = document.getElementById('inconsistentCount');
+            
+            const uniqueAResultsSection = document.getElementById('uniqueAResults');
+            const uniqueBResultsSection = document.getElementById('uniqueBResults');
+            const uniqueAList = document.getElementById('uniqueAList');
+            const uniqueBList = document.getElementById('uniqueBList');
+            const uniqueAHeader = uniqueAResultsSection.querySelector('.unique-header');
+            const uniqueBHeader = uniqueBResultsSection.querySelector('.unique-header');
+
+            const aiAnalysisSection = document.getElementById('aiAnalysisSection');
+            const aiLoading = document.getElementById('aiLoading');
+            const aiContent = document.getElementById('aiContent');
+            const aiError = document.getElementById('aiError');
+
+            // --- State Variables ---
+            let fileDataA = null;
+            let fileDataB = null;
+            let comparisonResults = null;
+            let parsedDataA = null;
+            let parsedDataB = null;
+
+            // --- Event Listeners ---
+            [idColumnA, itemColumnA, quantityColumnA, idColumnB, itemColumnB, quantityColumnB].forEach(sel => {
+                sel.addEventListener('change', checkIfReady);
+            });
+            compareBtn.addEventListener('click', handleCompare);
+            downloadBtn.addEventListener('click', exportToExcel);
+            resetBtn.addEventListener('click', resetTool);
+
+            // --- Main Functions ---
+            
+            /**
+             * Resets the entire tool to its initial state.
+             */
+            function resetTool() {
+                // Clear file inputs and data
+                fileAInput.value = '';
+                fileBInput.value = '';
+                fileDataA = null;
+                fileDataB = null;
+                parsedDataA = null;
+                parsedDataB = null;
+                comparisonResults = null;
+
+                // Reset UI elements
+                fileNameADisplay.textContent = '';
+                fileNameBDisplay.textContent = '';
+                errorADisplay.textContent = '';
+                errorBDisplay.textContent = '';
+                dropzoneA.classList.remove('border-indigo-500');
+                dropzoneB.classList.remove('border-indigo-500');
+
+                // Clear and disable selectors
+                clearSelectors({ id: idColumnA, item: itemColumnA, quantity: quantityColumnA });
+                clearSelectors({ id: idColumnB, item: itemColumnB, quantity: quantityColumnB });
+
+                // Hide results and disable buttons
+                resultsContainer.classList.add('hidden');
+                downloadBtn.classList.add('hidden');
+                resetBtn.classList.add('hidden');
+                compareBtn.disabled = true;
+            }
+
+            /**
+             * Checks if both files are uploaded and all columns are selected.
+             */
+            function checkIfReady() {
+                compareBtn.disabled = !(fileDataA && fileDataB && idColumnA.value && itemColumnA.value && quantityColumnA.value && idColumnB.value && itemColumnB.value && quantityColumnB.value);
+            }
+            
+            /**
+             * Sets up the drag-and-drop zone and file input handling.
+             * @param {HTMLInputElement} input - The file input element.
+             * @param {HTMLElement} display - The element to show the file name.
+             * @param {HTMLElement} errorDisplay - The element to show error messages.
+             * @param {HTMLElement} dropzone - The dropzone element.
+             * @param {object} selectors - The column selector elements.
+             * @param {object} dataStore - An object to store the parsed file data.
+             */
+            function setupDropzone(input, display, errorDisplay, dropzone, selectors, dataStore) {
+                const handleFile = async (file) => {
+                    if (!file) return;
+                    
+                    display.textContent = `讀取中... ${file.name}`;
+                    errorDisplay.textContent = '';
+                    dropzone.classList.remove('border-red-500');
+                    dropzone.classList.add('border-indigo-500');
+                    
+                    try {
+                        const rows = await readFile(file);
+                        dataStore.data = rows;
+                        populateColumnSelectors(rows[0] || [], selectors);
+                        display.textContent = file.name;
+                    } catch (e) {
+                        errorDisplay.textContent = `讀取 ${file.name} 失敗: ${e.message}`;
+                        dropzone.classList.add('border-red-500');
+                        display.textContent = '';
+                        dataStore.data = null;
+                        clearSelectors(selectors);
+                    }
+                    checkIfReady();
+                };
+
+                input.addEventListener('change', () => handleFile(input.files[0]));
+
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => dropzone.addEventListener(eventName, e => {e.preventDefault(); e.stopPropagation();}, false));
+                ['dragenter', 'dragover'].forEach(eventName => dropzone.addEventListener(eventName, () => dropzone.classList.add('bg-gray-100', 'border-indigo-500'), false));
+                ['dragleave', 'drop'].forEach(eventName => dropzone.addEventListener(eventName, () => dropzone.classList.remove('bg-gray-100'), false));
+                dropzone.addEventListener('drop', (e) => {
+                    input.files = e.dataTransfer.files;
+                    handleFile(input.files[0]);
+                }, false);
+            }
+            
+            setupDropzone(fileAInput, fileNameADisplay, errorADisplay, dropzoneA, {id: idColumnA, item: itemColumnA, quantity: quantityColumnA}, { set data(val) { fileDataA = val; } });
+            setupDropzone(fileBInput, fileNameBDisplay, errorBDisplay, dropzoneB, {id: idColumnB, item: itemColumnB, quantity: quantityColumnB}, { set data(val) { fileDataB = val; } });
+
+            /**
+             * Automatically selects columns based on header keywords.
+             * @param {string[]} headers - Array of header names.
+             * @param {object} selectors - The column selector elements.
+             */
+            function autoSelectColumns(headers, selectors) {
+                const idKeywords = ['id', 'key', '訂單', '單號', '編號'];
+                const itemKeywords = ['商品', '項目', '品號', '料號', 'item', 'product', 'sku', 'name'];
+                const quantityKeywords = ['數量', 'qty', 'quantity', 'amount'];
+
+                let assignedIndices = new Set();
+                
+                const findAndAssign = (keywords, selector) => {
+                    for (const kw of keywords) {
+                        const foundIndex = headers.findIndex((h, i) => 
+                            !assignedIndices.has(i) && String(h || '').toLowerCase().trim().includes(kw)
+                        );
+                        if (foundIndex !== -1) {
+                            selector.value = foundIndex;
+                            assignedIndices.add(foundIndex);
+                            return;
+                        }
+                    }
+                };
+
+                findAndAssign(quantityKeywords, selectors.quantity);
+                findAndAssign(itemKeywords, selectors.item);
+                findAndAssign(idKeywords, selectors.id);
+                
+                // Fallback for any not found selectors
+                [selectors.id, selectors.item, selectors.quantity].forEach(sel => {
+                    if (!sel.value) {
+                         const availableIndex = headers.findIndex((h, i) => !assignedIndices.has(i));
+                         if(availableIndex !== -1) {
+                            sel.value = availableIndex;
+                            assignedIndices.add(availableIndex);
+                         }
+                    }
+                });
+            }
+
+            /**
+             * Populates the dropdown selectors with header columns.
+             * @param {string[]} headers - Array of header names.
+             * @param {object} selectors - The column selector elements.
+             */
+            function populateColumnSelectors(headers, selectors) {
+                [selectors.id, selectors.item, selectors.quantity].forEach(sel => {
+                    sel.innerHTML = '<option value="">請選擇...</option>';
+                    sel.disabled = false;
+                });
+                headers.forEach((header, index) => {
+                    const option = `<option value="${index}">${header || `欄位 ${index + 1}`}</option>`;
+                    selectors.id.innerHTML += option;
+                    selectors.item.innerHTML += option;
+                    selectors.quantity.innerHTML += option;
+                });
+
+                autoSelectColumns(headers, selectors);
+            }
+
+            function clearSelectors(selectors) {
+                 [selectors.id, selectors.item, selectors.quantity].forEach(sel => {
+                    sel.innerHTML = '';
+                    sel.disabled = true;
+                    sel.value = '';
+                });
+            }
+
+            /**
+             * Main handler for the 'Compare' button click.
+             */
+            function handleCompare() {
+                const colIdxA = { id: +idColumnA.value, item: +itemColumnA.value, quantity: +quantityColumnA.value };
+                const colIdxB = { id: +idColumnB.value, item: +itemColumnB.value, quantity: +quantityColumnB.value };
+                
+                if (new Set(Object.values(colIdxA)).size !== 3 || new Set(Object.values(colIdxB)).size !== 3) {
+                    alert('同一份檔案中，ID、商品、數量請選擇不同的欄位！');
+                    return;
+                }
+
+                compareBtn.disabled = true;
+                compareBtn.textContent = '比對中...';
+                
+                // Use setTimeout to allow UI to update before heavy computation
+                setTimeout(() => {
+                    try {
+                        parsedDataA = parseData(fileDataA, colIdxA);
+                        parsedDataB = parseData(fileDataB, colIdxB);
+                        comparisonResults = compareData(parsedDataA, parsedDataB);
+                        displayResults(comparisonResults, fileAInput.files[0].name, fileBInput.files[0].name);
+                    } catch (error) {
+                        console.error("比對錯誤:", error);
+                        alert(`比對過程中發生錯誤: ${error.message}`);
+                    } finally {
+                        checkIfReady();
+                        compareBtn.textContent = '開始比對';
+                    }
+                }, 10);
+            }
+
+            /**
+             * Reads a file and returns its content as an array of arrays.
+             * @param {File} file - The file to read.
+             * @returns {Promise<Array<Array<string>>>} A promise that resolves with the file content.
+             */
+            function readFile(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    const fileExtension = file.name.split('.').pop().toLowerCase();
+                    reader.onload = (event) => {
+                        try {
+                            const data = event.target.result;
+                            let rows;
+                            if (fileExtension === 'csv') {
+                                rows = Papa.parse(data, { skipEmptyLines: true }).data;
+                            } else if (['xlsx', 'xls'].includes(fileExtension)) {
+                                const workbook = XLSX.read(data, { type: 'binary' });
+                                const sheetName = workbook.SheetNames[0];
+                                const worksheet = workbook.Sheets[sheetName];
+                                rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+                            } else {
+                                return reject(new Error('不支援的檔案格式'));
+                            }
+                            if (!rows || rows.length === 0) {
+                                return reject(new Error('檔案為空或格式不正確'));
+                            }
+                            resolve(rows);
+                        } catch (e) { reject(e); }
+                    };
+                    reader.onerror = (error) => reject(error);
+                    if (fileExtension === 'csv') reader.readAsText(file, 'UTF-8');
+                    else reader.readAsBinaryString(file);
+                });
+            }
+            
+            /**
+             * Parses the raw data into a structured map for comparison.
+             * @param {Array<Array<string>>} dataArray - The raw data from the file.
+             * @param {object} colIdx - The indices for ID, item, and quantity columns.
+             * @returns {object} A map where keys are IDs and values are item-quantity maps.
+             */
+            function parseData(dataArray, colIdx) {
+                const dataMap = {};
+                // Start from 1 to skip header row
+                for (let i = 1; i < dataArray.length; i++) {
+                    const row = dataArray[i];
+                    if (!row || row.length <= Math.max(colIdx.id, colIdx.item, colIdx.quantity)) continue;
+                    
+                    const id = String(row[colIdx.id] || '').trim();
+                    const item = String(row[colIdx.item] || '').trim();
+                    const quantity = parseInt(row[colIdx.quantity], 10);
+
+                    if (id === '' || item === '' || isNaN(quantity)) continue;
+
+                    if (!dataMap[id]) dataMap[id] = {};
+                    dataMap[id][item] = (dataMap[id][item] || 0) + quantity;
+                }
+                return dataMap;
+            }
+
+            /**
+             * Compares two parsed data maps.
+             * @param {object} dataA - The first parsed data map.
+             * @param {object} dataB - The second parsed data map.
+             * @returns {object} An object containing the comparison results.
+             */
+            function compareData(dataA, dataB) {
+                const allIds = new Set([...Object.keys(dataA), ...Object.keys(dataB)]);
+                const results = { inconsistent: [], uniqueToA: [], uniqueToB: [], consistent: [] };
+                allIds.forEach(id => {
+                    const inA = dataA.hasOwnProperty(id);
+                    const inB = dataB.hasOwnProperty(id);
+                    if (inA && inB) {
+                        const differences = findDifferences(dataA[id], dataB[id]);
+                        if (differences.length > 0) {
+                             results.inconsistent.push({ id, itemsA: dataA[id], itemsB: dataB[id] });
+                        } else {
+                            results.consistent.push(id);
+                        }
+                    } else if (inA) {
+                        results.uniqueToA.push(id);
+                    } else {
+                        results.uniqueToB.push(id);
+                    }
+                });
+                return results;
+            }
+
+            function findDifferences(itemsA, itemsB) {
+                const allItems = new Set([...Object.keys(itemsA), ...Object.keys(itemsB)]);
+                const differences = [];
+                allItems.forEach(item => {
+                    if ((itemsA[item] || 0) !== (itemsB[item] || 0)) {
+                        differences.push(item);
+                    }
+                });
+                return differences;
+            }
+
+            async function displayResults(results, fileNameA, fileNameB) {
+                // --- Reset all sections ---
+                [commonItemSummarySection, consistentResultsSection, inconsistentResultsSection, uniqueAResultsSection, uniqueBResultsSection].forEach(el => {
+                    el.style.display = 'none';
+                    el.open = false;
+                });
+
+                const commonIds = [...results.consistent, ...results.inconsistent.map(item => item.id)];
+                
+                // --- Handle Common Item Summary ---
+                if (commonIds.length > 0) {
+                    const summaryA = {};
+                    const summaryB = {};
+                    commonIds.forEach(id => {
+                        const itemsA = parsedDataA[id];
+                        if(itemsA) {
+                            for (const [itemName, qty] of Object.entries(itemsA)) {
+                                summaryA[itemName] = (summaryA[itemName] || 0) + qty;
+                            }
+                        }
+                        const itemsB = parsedDataB[id];
+                        if(itemsB) {
+                            for (const [itemName, qty] of Object.entries(itemsB)) {
+                                summaryB[itemName] = (summaryB[itemName] || 0) + qty;
+                            }
+                        }
+                    });
+
+                    const buildSummaryTable = (summaryData, title) => {
+                        if (Object.keys(summaryData).length === 0) return '';
+                        let rowsHtml = Object.entries(summaryData).sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+                            .map(([itemName, totalQty]) => `<tr class="text-sm"><td class="border px-2 py-1">${itemName}</td><td class="border px-2 py-1 text-center">${totalQty}</td></tr>`).join('');
+                        return `<div class="flex-1"><h5 class="font-semibold mb-1 text-center text-gray-700">${title}</h5><table class="w-full border-collapse text-gray-800"><thead class="bg-gray-100 text-xs"><tr><th class="border px-2 py-1 font-medium">商品</th><th class="border px-2 py-1 font-medium">總數量</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+                    };
+                    commonItemSummaryTables.innerHTML = `${buildSummaryTable(summaryA, fileNameA)}${buildSummaryTable(summaryB, fileNameB)}`;
+                    commonItemSummarySection.style.display = 'block';
+                }
+
+                // --- Handle Consistent Results ---
+                if (results.consistent.length > 0) {
+                    if (results.inconsistent.length === 0 && results.uniqueToA.length === 0 && results.uniqueToB.length === 0) {
+                        consistentHeader.textContent = `比對完成：所有訂單內容皆相符（共 ${results.consistent.length} 筆）`;
+                        consistentExplanation.textContent = '這表示兩份檔案中所有共有的訂單，其商品項目與加總數量完全一致，且沒有任何一方包含獨有的訂單。';
+                        consistentExplanation.classList.remove('hidden');
+                    } else {
+                        consistentHeader.textContent = `相同訂單，內容無差異（共 ${results.consistent.length} 筆）`;
+                        consistentExplanation.classList.add('hidden');
+                    }
+                    consistentList.innerHTML = results.consistent.map(id => `<span class="bg-gray-200 text-gray-800 text-sm font-medium px-3 py-1 rounded-full">${id}</span>`).join('');
+                    consistentResultsSection.style.display = 'block';
+                }
+
+                // --- Handle Inconsistent Results ---
+                if (results.inconsistent.length > 0) {
+                    inconsistentCountSpan.textContent = `（共 ${results.inconsistent.length} 筆）`;
+                    inconsistentList.innerHTML = results.inconsistent.map(item => {
+                        const allItems = new Set([...Object.keys(item.itemsA), ...Object.keys(item.itemsB)]);
+                        const buildTableRows = (currentItems, otherItems) => {
+                            let rowsHtml = '';
+                            const sortedItems = Array.from(allItems).sort();
+                            sortedItems.forEach(itemName => {
+                                const currentQty = currentItems[itemName] || 0;
+                                const otherQty = otherItems[itemName] || 0;
+                                const isDiff = currentQty !== otherQty;
+                                const rowClass = isDiff ? 'bg-red-50' : '';
+                                rowsHtml += `<tr class="${rowClass} text-sm"><td class="border px-2 py-1">${itemName}</td><td class="border px-2 py-1 text-center">${currentQty}</td></tr>`;
+                            });
+                            return rowsHtml;
+                        };
+                        const tableA = `<div class="flex-1"><h5 class="font-semibold mb-1 text-center text-gray-700">${fileNameA}</h5><table class="w-full border-collapse text-gray-800"><thead class="bg-gray-100 text-xs"><tr><th class="border px-2 py-1 font-medium">商品</th><th class="border px-2 py-1 font-medium">數量</th></tr></thead><tbody>${buildTableRows(item.itemsA, item.itemsB)}</tbody></table></div>`;
+                        const tableB = `<div class="flex-1"><h5 class="font-semibold mb-1 text-center text-gray-700">${fileNameB}</h5><table class="w-full border-collapse text-gray-800"><thead class="bg-gray-100 text-xs"><tr><th class="border px-2 py-1 font-medium">商品</th><th class="border px-2 py-1 font-medium">數量</th></tr></thead><tbody>${buildTableRows(item.itemsB, item.itemsA)}</tbody></table></div>`;
+                        return `<div class="bg-gray-50 border border-gray-200 rounded-lg p-4"><p class="text-lg font-bold text-indigo-700 mb-3">訂單 ID: ${item.id}</p><div class="flex flex-col md:flex-row gap-4">${tableA}${tableB}</div></div>`;
+                    }).join('');
+                    inconsistentResultsSection.style.display = 'block';
+                    analyzeDifferencesWithAI(results, fileNameA, fileNameB);
+                }
+
+                // --- Handle Unique Results ---
+                if (results.uniqueToA.length > 0) {
+                    uniqueAHeader.textContent = `僅存在於 ${fileNameA} 的訂單（共 ${results.uniqueToA.length} 筆）`;
+                    uniqueAList.innerHTML = results.uniqueToA.map(id => `<span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full">${id}</span>`).join('');
+                    uniqueAResultsSection.style.display = 'block';
+                }
+                if (results.uniqueToB.length > 0) {
+                    uniqueBHeader.textContent = `僅存在於 ${fileNameB} 的訂單（共 ${results.uniqueToB.length} 筆）`;
+                    uniqueBList.innerHTML = results.uniqueToB.map(id => `<span class="bg-green-100 text-green-800 text-sm font-medium px-3 py-1 rounded-full">${id}</span>`).join('');
+                    uniqueBResultsSection.style.display = 'block';
+                }
+                
+                resultsContainer.classList.remove('hidden');
+                downloadBtn.classList.remove('hidden');
+                resetBtn.classList.remove('hidden');
+            }
+
+            async function analyzeDifferencesWithAI(results, fileNameA, fileNameB) {
+                aiAnalysisSection.classList.remove('hidden');
+                aiLoading.classList.remove('hidden');
+                aiContent.classList.add('hidden');
+                aiError.classList.add('hidden');
+                
+                let diffSummary = `正在比對兩個檔案：「${fileNameA}」和「${fileNameB}」。\n`;
+                diffSummary += `以下是前 15 筆訂單的內容差異摘要：\n`;
+
+                results.inconsistent.slice(0, 15).forEach(item => {
+                    const allItems = new Set([...Object.keys(item.itemsA), ...Object.keys(item.itemsB)]);
+                    let itemDiffs = [];
+                    allItems.forEach(itemName => {
+                        const qtyA = item.itemsA[itemName] || 0;
+                        const qtyB = item.itemsB[itemName] || 0;
+                        if (qtyA !== qtyB) {
+                             if (qtyA > 0 && qtyB > 0) {
+                                itemDiffs.push(`商品'${itemName}'數量不同(${fileNameA}: ${qtyA}, ${fileNameB}: ${qtyB})`);
+                            } else if (qtyA > 0) {
+                                itemDiffs.push(`商品'${itemName}'在'${fileNameB}'中缺少(${fileNameA}有 ${qtyA} 個)`);
+                            } else {
+                                itemDiffs.push(`商品'${itemName}'在'${fileNameA}'中缺少(${fileNameB}有 ${qtyB} 個)`);
+                            }
+                        }
+                    });
+                    diffSummary += `- 訂單 ${item.id}: ${itemDiffs.join('; ')}\n`;
+                });
+
+                const userQuery = `你是一位精準的數據稽核員。基於以下數據差異摘要，請用繁體中文、純文字、非條列式的方式，精準地說明兩份檔案之間商品內容與數量的差異來源。例如，是A檔案的某商品數量較多，還是B檔案缺少了某商品。你的回覆必須直接以差異說明開始，且不包含任何符號、標題或開場白。`;
+                
+                const apiKey = ""; 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+                
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: `${userQuery}\n\n${diffSummary}` }] }] })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`API 請求失敗，狀態碼: ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                    if (text) {
+                        aiContent.textContent = text;
+                        aiContent.classList.remove('hidden');
+                    } else {
+                        throw new Error("從 API 回應中找不到有效的文字內容。");
+                    }
+                } catch (error) {
+                    console.error("AI 分析失敗:", error);
+                    aiError.classList.remove('hidden');
+                } finally {
+                    aiLoading.classList.add('hidden');
+                }
+            }
+
+            function exportToExcel() {
+                if (!comparisonResults) {
+                    alert('沒有可匯出的結果。');
+                    return;
+                }
+                const fileNameA = fileAInput.files[0].name;
+                const fileNameB = fileBInput.files[0].name;
+                const wb = XLSX.utils.book_new();
+                const sanitizeSheetName = (name) => name.replace(/[\\/*?:"<>|]/g, "").substring(0, 31);
+                
+                const inconsistentDataForExport = [['訂單 ID', '差異說明']];
+                comparisonResults.inconsistent.forEach(item => {
+                     const allItems = new Set([...Object.keys(item.itemsA), ...Object.keys(item.itemsB)]);
+                     allItems.forEach(itemName => {
+                         const qtyA = item.itemsA[itemName] || 0;
+                         const qtyB = item.itemsB[itemName] || 0;
+                         if (qtyA !== qtyB) {
+                            let diffText = '';
+                            if (qtyA > 0 && qtyB > 0) {
+                                diffText = `商品 ${itemName} 數量不同 (${fileNameA}: ${qtyA}, ${fileNameB}: ${qtyB})`;
+                            } else if (qtyA > 0) {
+                                diffText = `商品 ${itemName} 於 ${fileNameB} 中缺少 (${fileNameA} 數量: ${qtyA})`;
+                            } else {
+                                diffText = `商品 ${itemName} 於 ${fileNameA} 中缺少 (${fileNameB} 數量: ${qtyB})`;
+                            }
+                            inconsistentDataForExport.push([item.id, diffText]);
+                         }
+                     });
+                });
+                const ws1 = XLSX.utils.aoa_to_sheet(inconsistentDataForExport);
+                XLSX.utils.book_append_sheet(wb, ws1, '相同訂單-內容差異');
+
+                const consistentData = [['訂單 ID']];
+                comparisonResults.consistent.forEach(id => consistentData.push([id]));
+                const ws2 = XLSX.utils.aoa_to_sheet(consistentData);
+                XLSX.utils.book_append_sheet(wb, ws2, '相同訂單-內容無差異');
+
+                const uniqueAData = [[`訂單 ID`]];
+                comparisonResults.uniqueToA.forEach(id => uniqueAData.push([id]));
+                const ws3 = XLSX.utils.aoa_to_sheet(uniqueAData);
+                XLSX.utils.book_append_sheet(wb, ws3, sanitizeSheetName(`僅存在於 ${fileNameA}`));
+
+                const uniqueBData = [[`訂單 ID`]];
+                comparisonResults.uniqueToB.forEach(id => uniqueBData.push([id]));
+                const ws4 = XLSX.utils.aoa_to_sheet(uniqueBData);
+                XLSX.utils.book_append_sheet(wb, ws4, sanitizeSheetName(`僅存在於 ${fileNameB}`));
+
+                XLSX.writeFile(wb, '比對結果.xlsx');
+            }
+        });
+    </script>
+</body>
+</html>
+
