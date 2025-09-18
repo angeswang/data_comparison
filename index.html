@@ -410,15 +410,11 @@
              * @param {object} selectors - The column selector elements.
              */
             function populateColumnSelectors(headers, selectors) {
+                const baseOption = '<option value="">請選擇...</option>';
+                const optionsHtml = headers.map((header, index) => `<option value="${index}">${header || `欄位 ${index + 1}`}</option>`).join('');
                 [selectors.id, selectors.item, selectors.quantity].forEach(sel => {
-                    sel.innerHTML = '<option value="">請選擇...</option>';
                     sel.disabled = false;
-                });
-                headers.forEach((header, index) => {
-                    const option = `<option value="${index}">${header || `欄位 ${index + 1}`}</option>`;
-                    selectors.id.innerHTML += option;
-                    selectors.item.innerHTML += option;
-                    selectors.quantity.innerHTML += option;
+                    sel.innerHTML = baseOption + optionsHtml;
                 });
 
                 autoSelectColumns(headers, selectors);
@@ -447,8 +443,9 @@
                 compareBtn.disabled = true;
                 compareBtn.textContent = '比對中...';
                 
-                // Use setTimeout to allow UI to update before heavy computation
-                setTimeout(() => {
+                // Yield to UI before heavy computation
+                const schedule = window.requestIdleCallback || ((cb) => setTimeout(cb, 0));
+                schedule(() => {
                     try {
                         parsedDataA = parseData(fileDataA, colIdxA);
                         parsedDataB = parseData(fileDataB, colIdxB);
@@ -461,7 +458,7 @@
                         checkIfReady();
                         compareBtn.textContent = '開始比對';
                     }
-                }, 10);
+                });
             }
 
             /**
@@ -471,31 +468,45 @@
              */
             function readFile(file) {
                 return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
                     const fileExtension = file.name.split('.').pop().toLowerCase();
-                    reader.onload = (event) => {
-                        try {
-                            const data = event.target.result;
-                            let rows;
-                            if (fileExtension === 'csv') {
-                                rows = Papa.parse(data, { skipEmptyLines: true }).data;
-                            } else if (['xlsx', 'xls'].includes(fileExtension)) {
-                                const workbook = XLSX.read(data, { type: 'binary' });
+
+                    if (fileExtension === 'csv') {
+                        Papa.parse(file, {
+                            worker: true,
+                            skipEmptyLines: true,
+                            complete: (result) => {
+                                const rows = result?.data || [];
+                                if (!rows.length) return reject(new Error('檔案為空或格式不正確'));
+                                resolve(rows);
+                            },
+                            error: (err) => reject(err)
+                        });
+                        return;
+                    }
+
+                    if (['xlsx', 'xls'].includes(fileExtension)) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            try {
+                                const data = event.target.result;
+                                const workbook = XLSX.read(data, { type: 'array' });
                                 const sheetName = workbook.SheetNames[0];
                                 const worksheet = workbook.Sheets[sheetName];
-                                rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
-                            } else {
-                                return reject(new Error('不支援的檔案格式'));
+                                const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+                                if (!rows || rows.length === 0) {
+                                    return reject(new Error('檔案為空或格式不正確'));
+                                }
+                                resolve(rows);
+                            } catch (e) {
+                                reject(e);
                             }
-                            if (!rows || rows.length === 0) {
-                                return reject(new Error('檔案為空或格式不正確'));
-                            }
-                            resolve(rows);
-                        } catch (e) { reject(e); }
-                    };
-                    reader.onerror = (error) => reject(error);
-                    if (fileExtension === 'csv') reader.readAsText(file, 'UTF-8');
-                    else reader.readAsBinaryString(file);
+                        };
+                        reader.onerror = (error) => reject(error);
+                        reader.readAsArrayBuffer(file);
+                        return;
+                    }
+
+                    reject(new Error('不支援的檔案格式'));
                 });
             }
             
@@ -514,9 +525,10 @@
                     
                     const id = String(row[colIdx.id] || '').trim();
                     const item = String(row[colIdx.item] || '').trim();
-                    const quantity = parseInt(row[colIdx.quantity], 10);
+                    const rawQuantity = String(row[colIdx.quantity] ?? '').replace(/[\s,]/g, '');
+                    const quantity = Number(rawQuantity);
 
-                    if (id === '' || item === '' || isNaN(quantity)) continue;
+                    if (id === '' || item === '' || !Number.isFinite(quantity)) continue;
 
                     if (!dataMap[id]) dataMap[id] = {};
                     dataMap[id][item] = (dataMap[id][item] || 0) + quantity;
@@ -658,6 +670,12 @@
             }
 
             async function analyzeDifferencesWithAI(results, fileNameA, fileNameB) {
+                const apiKey = ""; 
+                if (!apiKey) {
+                    aiAnalysisSection.classList.add('hidden');
+                    return;
+                }
+
                 aiAnalysisSection.classList.remove('hidden');
                 aiLoading.classList.remove('hidden');
                 aiContent.classList.add('hidden');
@@ -687,7 +705,6 @@
 
                 const userQuery = `你是一位精準的數據稽核員。基於以下數據差異摘要，請用繁體中文、純文字、非條列式的方式，精準地說明兩份檔案之間商品內容與數量的差異來源。例如，是A檔案的某商品數量較多，還是B檔案缺少了某商品。你的回覆必須直接以差異說明開始，且不包含任何符號、標題或開場白。`;
                 
-                const apiKey = ""; 
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
                 
                 try {
