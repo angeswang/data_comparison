@@ -118,10 +118,37 @@
             </div>
 
             <!-- 操作區 -->
-            <div class="text-center mb-8">
-                <button id="compareBtn" class="bg-indigo-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-transform transform hover:scale-105 duration-200 shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
-                    開始比對
-                </button>
+            <div class="mb-8">
+                <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <button id="compareBtn" class="bg-indigo-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-transform transform hover:scale-105 duration-200 shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+                            開始比對
+                        </button>
+                        <div id="progressContainer" class="hidden w-64">
+                            <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                                <div id="progressBar" class="bg-indigo-600 h-3" style="width:0%"></div>
+                            </div>
+                            <div class="flex justify-between text-xs text-gray-600 mt-1">
+                                <span id="progressLabel">0%</span>
+                                <span id="elapsedTime">0.0s</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg border p-3 shadow-sm">
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <label class="inline-flex items-center gap-2">
+                                <input id="aiEnable" type="checkbox" class="rounded">
+                                <span class="text-sm text-gray-800">啟用 AI 說明</span>
+                            </label>
+                            <input id="aiApiKey" type="password" placeholder="API Key" class="w-full sm:w-64 border-gray-300 rounded-md text-sm px-2 py-1">
+                            <select id="aiModel" class="border-gray-300 rounded-md text-sm px-2 py-1">
+                                <option value="gemini-2.5-flash-preview-05-20">gemini-2.5-flash-preview-05-20</option>
+                                <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+                            </select>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">需提供 Google Generative Language API Key</p>
+                    </div>
+                </div>
             </div>
 
             <!-- 結果顯示區 -->
@@ -235,6 +262,13 @@
             const downloadBtn = document.getElementById('downloadBtn');
             const resetBtn = document.getElementById('resetBtn');
             const resultsContainer = document.getElementById('resultsContainer');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            const progressLabel = document.getElementById('progressLabel');
+            const elapsedTime = document.getElementById('elapsedTime');
+            const aiEnable = document.getElementById('aiEnable');
+            const aiApiKey = document.getElementById('aiApiKey');
+            const aiModel = document.getElementById('aiModel');
 
             const commonItemSummarySection = document.getElementById('commonItemSummary');
             const commonItemSummaryTables = document.getElementById('commonItemSummaryTables');
@@ -266,6 +300,8 @@
             let comparisonResults = null;
             let parsedDataA = null;
             let parsedDataB = null;
+            let compareStartTs = 0;
+            let elapsedTimerId = null;
 
             // --- Event Listeners ---
             [idColumnA, itemColumnA, quantityColumnA, idColumnB, itemColumnB, quantityColumnB].forEach(sel => {
@@ -307,6 +343,9 @@
                 downloadBtn.classList.add('hidden');
                 resetBtn.classList.add('hidden');
                 compareBtn.disabled = true;
+                stopProgress();
+                setProgress(0);
+                progressContainer.classList.add('hidden');
             }
 
             /**
@@ -445,20 +484,49 @@
                 
                 // Yield to UI before heavy computation
                 const schedule = window.requestIdleCallback || ((cb) => setTimeout(cb, 0));
-                schedule(() => {
+                progressContainer.classList.remove('hidden');
+                compareStartTs = Date.now();
+                startElapsedTimer();
+                schedule(async () => {
                     try {
-                        parsedDataA = parseData(fileDataA, colIdxA);
-                        parsedDataB = parseData(fileDataB, colIdxB);
-                        comparisonResults = compareData(parsedDataA, parsedDataB);
+                        const useWorker = typeof Worker !== 'undefined';
+                        if (useWorker) {
+                            comparisonResults = await compareWithWorker(fileDataA, fileDataB, colIdxA, colIdxB, (p) => setProgress(p));
+                        } else {
+                            comparisonResults = await compareInChunks(fileDataA, fileDataB, colIdxA, colIdxB, (p) => setProgress(p));
+                        }
                         displayResults(comparisonResults, fileAInput.files[0].name, fileBInput.files[0].name);
                     } catch (error) {
                         console.error("比對錯誤:", error);
                         alert(`比對過程中發生錯誤: ${error.message}`);
                     } finally {
+                        stopProgress();
+                        setProgress(100);
                         checkIfReady();
                         compareBtn.textContent = '開始比對';
                     }
                 });
+            }
+
+            function startElapsedTimer() {
+                stopProgress();
+                elapsedTimerId = setInterval(() => {
+                    const secs = (Date.now() - compareStartTs) / 1000;
+                    elapsedTime.textContent = `${secs.toFixed(1)}s`;
+                }, 100);
+            }
+
+            function stopProgress() {
+                if (elapsedTimerId) {
+                    clearInterval(elapsedTimerId);
+                    elapsedTimerId = null;
+                }
+            }
+
+            function setProgress(percent) {
+                const p = Math.max(0, Math.min(100, Math.round(percent)));
+                progressBar.style.width = `${p}%`;
+                progressLabel.textContent = `${p}%`;
             }
 
             /**
@@ -534,6 +602,104 @@
                     dataMap[id][item] = (dataMap[id][item] || 0) + quantity;
                 }
                 return dataMap;
+            }
+
+            async function compareInChunks(rowsA, rowsB, colIdxA, colIdxB, onProgress) {
+                parsedDataA = parseData(rowsA, colIdxA);
+                parsedDataB = parseData(rowsB, colIdxB);
+                const ids = Array.from(new Set([...Object.keys(parsedDataA), ...Object.keys(parsedDataB)]));
+                const total = ids.length;
+                const chunkSize = Math.max(100, Math.floor(total / 50));
+                const results = { inconsistent: [], uniqueToA: [], uniqueToB: [], consistent: [] };
+                for (let start = 0; start < total; start += chunkSize) {
+                    const end = Math.min(total, start + chunkSize);
+                    for (let i = start; i < end; i++) {
+                        const id = ids[i];
+                        const inA = parsedDataA.hasOwnProperty(id);
+                        const inB = parsedDataB.hasOwnProperty(id);
+                        if (inA && inB) {
+                            const diffs = findDifferences(parsedDataA[id], parsedDataB[id]);
+                            if (diffs.length > 0) results.inconsistent.push({ id, itemsA: parsedDataA[id], itemsB: parsedDataB[id] });
+                            else results.consistent.push(id);
+                        } else if (inA) results.uniqueToA.push(id);
+                        else results.uniqueToB.push(id);
+                    }
+                    onProgress?.((end / total) * 100);
+                    await new Promise(r => setTimeout(r, 0));
+                }
+                return results;
+            }
+
+            function compareWithWorker(rowsA, rowsB, colIdxA, colIdxB, onProgress) {
+                return new Promise((resolve, reject) => {
+                    const workerBlob = new Blob([`
+                        self.onmessage = (e) => {
+                            const { rowsA, rowsB, colIdxA, colIdxB } = e.data;
+                            function parseData(dataArray, colIdx) {
+                                const dataMap = {};
+                                for (let i = 1; i < dataArray.length; i++) {
+                                    const row = dataArray[i];
+                                    if (!row || row.length <= Math.max(colIdx.id, colIdx.item, colIdx.quantity)) continue;
+                                    const id = String(row[colIdx.id] || '').trim();
+                                    const item = String(row[colIdx.item] || '').trim();
+                                    const rawQuantity = String(row[colIdx.quantity] ?? '').replace(/[\\s,]/g, '');
+                                    const quantity = Number(rawQuantity);
+                                    if (id === '' || item === '' || !Number.isFinite(quantity)) continue;
+                                    if (!dataMap[id]) dataMap[id] = {};
+                                    dataMap[id][item] = (dataMap[id][item] || 0) + quantity;
+                                }
+                                return dataMap;
+                            }
+                            function findDifferences(itemsA, itemsB) {
+                                const allItems = new Set([...Object.keys(itemsA), ...Object.keys(itemsB)]);
+                                const differences = [];
+                                allItems.forEach(item => {
+                                    if ((itemsA[item] || 0) !== (itemsB[item] || 0)) differences.push(item);
+                                });
+                                return differences;
+                            }
+                            const parsedA = parseData(rowsA, colIdxA);
+                            const parsedB = parseData(rowsB, colIdxB);
+                            const ids = Array.from(new Set([...Object.keys(parsedA), ...Object.keys(parsedB)]));
+                            const total = ids.length;
+                            const chunkSize = Math.max(100, Math.floor(total / 50));
+                            const results = { inconsistent: [], uniqueToA: [], uniqueToB: [], consistent: [] };
+                            for (let start = 0; start < total; start += chunkSize) {
+                                const end = Math.min(total, start + chunkSize);
+                                for (let i = start; i < end; i++) {
+                                    const id = ids[i];
+                                    const inA = Object.prototype.hasOwnProperty.call(parsedA, id);
+                                    const inB = Object.prototype.hasOwnProperty.call(parsedB, id);
+                                    if (inA && inB) {
+                                        const diffs = findDifferences(parsedA[id], parsedB[id]);
+                                        if (diffs.length > 0) results.inconsistent.push({ id, itemsA: parsedA[id], itemsB: parsedB[id] });
+                                        else results.consistent.push(id);
+                                    } else if (inA) results.uniqueToA.push(id);
+                                    else results.uniqueToB.push(id);
+                                }
+                                self.postMessage({ type: 'progress', percent: (end / total) * 100 });
+                            }
+                            self.postMessage({ type: 'done', results });
+                        };
+                    `], { type: 'application/javascript' });
+                    const workerUrl = URL.createObjectURL(workerBlob);
+                    const worker = new Worker(workerUrl);
+                    worker.onmessage = (msg) => {
+                        const { type, percent, results } = msg.data || {};
+                        if (type === 'progress') onProgress?.(percent);
+                        if (type === 'done') {
+                            URL.revokeObjectURL(workerUrl);
+                            worker.terminate();
+                            resolve(results);
+                        }
+                    };
+                    worker.onerror = (err) => {
+                        URL.revokeObjectURL(workerUrl);
+                        worker.terminate();
+                        reject(err);
+                    };
+                    worker.postMessage({ rowsA, rowsB, colIdxA, colIdxB });
+                });
             }
 
             /**
@@ -649,7 +815,12 @@
                         return `<div class="bg-gray-50 border border-gray-200 rounded-lg p-4"><p class="text-lg font-bold text-indigo-700 mb-3">訂單 ID: ${item.id}</p><div class="flex flex-col md:flex-row gap-4">${tableA}${tableB}</div></div>`;
                     }).join('');
                     inconsistentResultsSection.style.display = 'block';
+                }
+                // Always run AI if key is present, regardless of inconsistencies
+                if ((aiApiKey?.value || '').trim()) {
                     analyzeDifferencesWithAI(results, fileNameA, fileNameB);
+                } else {
+                    aiAnalysisSection.classList.add('hidden');
                 }
 
                 // --- Handle Unique Results ---
@@ -670,11 +841,6 @@
             }
 
             async function analyzeDifferencesWithAI(results, fileNameA, fileNameB) {
-                const apiKey = ""; 
-                if (!apiKey) {
-                    aiAnalysisSection.classList.add('hidden');
-                    return;
-                }
 
                 aiAnalysisSection.classList.remove('hidden');
                 aiLoading.classList.remove('hidden');
@@ -705,7 +871,15 @@
 
                 const userQuery = `你是一位精準的數據稽核員。基於以下數據差異摘要，請用繁體中文、純文字、非條列式的方式，精準地說明兩份檔案之間商品內容與數量的差異來源。例如，是A檔案的某商品數量較多，還是B檔案缺少了某商品。你的回覆必須直接以差異說明開始，且不包含任何符號、標題或開場白。`;
                 
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+                const key = aiApiKey.value.trim();
+                const model = aiModel.value;
+                if (!key) {
+                    aiLoading.classList.add('hidden');
+                    aiError.textContent = '未提供 API Key，已跳過 AI 分析。';
+                    aiError.classList.remove('hidden');
+                    return;
+                }
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
                 
                 try {
                     const response = await fetch(apiUrl, {
@@ -719,9 +893,9 @@
                     }
                     
                     const result = await response.json();
-                    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-                    if (text) {
+                    if (text.trim()) {
                         aiContent.textContent = text;
                         aiContent.classList.remove('hidden');
                     } else {
@@ -730,6 +904,7 @@
                 } catch (error) {
                     console.error("AI 分析失敗:", error);
                     aiError.classList.remove('hidden');
+                    aiError.textContent = `分析失敗：${error.message}`;
                 } finally {
                     aiLoading.classList.add('hidden');
                 }
